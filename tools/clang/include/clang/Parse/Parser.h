@@ -891,6 +891,11 @@ private:
   OwningStmtResult ParseCXXCatchBlock();
 
   //===--------------------------------------------------------------------===//
+  // PRET: Statements and Blocks
+
+  OwningStmtResult ParsePRETTryBlock();
+
+  //===--------------------------------------------------------------------===//
   // Objective-C Statements
 
   OwningStmtResult ParseObjCAtStatement(SourceLocation atLoc);

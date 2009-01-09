@@ -222,6 +222,9 @@ KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Imaginary                  , KEYALL)
 KEYWORD(__func__                    , KEYALL)
 
+// Special PRET keywords
+KEYWORD(tryin                       , KEYGNU)
+
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , KEYCXX|KEYGNU)
 KEYWORD(bool                        , KEYCXX)
