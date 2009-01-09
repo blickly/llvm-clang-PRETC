@@ -257,6 +257,9 @@ Stmt* Stmt::Create(Deserializer& D, ASTContext& C) {
 
     case QualifiedDeclRefExprClass:
       return QualifiedDeclRefExpr::CreateImpl(D, C);
+
+    case PRETTryStmtClass:
+      return PRETTryStmt::CreateImpl(D, C);
   }
 }
 
@@ -1611,4 +1614,22 @@ QualifiedDeclRefExpr*
 QualifiedDeclRefExpr::CreateImpl(llvm::Deserializer& D, ASTContext& C) {
   assert(false && "Cannot deserialize qualified decl references");
   return 0;
+}
+
+void PRETTryStmt::EmitImpl(Serializer& S) const {
+  S.Emit(TryLoc);
+  S.EmitOwnedPtr(getConstraint());
+  S.EmitOwnedPtr(getTryBlock());
+  S.Emit(CatchLoc);
+  S.EmitOwnedPtr(getCatchBlock());
+}
+
+PRETTryStmt *
+PRETTryStmt::CreateImpl(llvm::Deserializer& D, ASTContext& C) {
+  SourceLocation TL = SourceLocation::ReadVal(D);
+  Expr* Cons = D.ReadOwnedPtr<Expr>(C);
+  Stmt* Try = D.ReadOwnedPtr<Stmt>(C);
+  SourceLocation CL = SourceLocation::ReadVal(D);
+  Stmt* Catch = D.ReadOwnedPtr<Stmt>(C);
+  return new PRETTryStmt(TL,Cons,Try,CL,Catch);
 }

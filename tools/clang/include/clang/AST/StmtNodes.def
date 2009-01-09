@@ -57,7 +57,10 @@ STMT(ObjCForCollectionStmt, Stmt)
 STMT(CXXCatchStmt, Stmt)
 STMT(CXXTryStmt  , Stmt)
 
-LAST_STMT(CXXTryStmt)
+// PRET statements
+STMT(PRETTryStmt  , Stmt)
+
+LAST_STMT(PRETTryStmt)
 
 // Expressions.
 STMT(Expr                  , Stmt)

@@ -1051,11 +1051,9 @@ Sema::ActOnPRETTryBlock(SourceLocation TryLoc, ExprTy *ConstraintVal,
                      diag::err_typecheck_statement_requires_integer)
                      << constraintType << constraintExpr->getSourceRange());
   }
-/*
+
   return Owned(new (Context) PRETTryStmt(TryLoc, constraintExpr,
                                   static_cast<Stmt*>(TryBlock.release()),
                                   CatchLoc,
                                   static_cast<Stmt*>(CatchBlock.release())));
-*/
-  return StmtEmpty();
 }

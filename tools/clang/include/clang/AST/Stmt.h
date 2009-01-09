@@ -1334,6 +1334,54 @@ public:
   static CXXTryStmt* CreateImpl(llvm::Deserializer& D, ASTContext& C);
 };
 
+/// PRETTryStmt - A PRET try-catch block.
+class PRETTryStmt : public Stmt {
+  enum { CONS, TRY, CATCH, END_EXPR };
+  Stmt* SubExprs[END_EXPR];
+  SourceLocation TryLoc, CatchLoc;
+
+public:
+  PRETTryStmt(SourceLocation tryLoc, Expr *cons, Stmt *tryS,
+              SourceLocation catchLoc, Stmt *catchS)
+    : Stmt(PRETTryStmtClass), TryLoc(tryLoc), CatchLoc(catchLoc) {
+    SubExprs[CONS] = reinterpret_cast<Stmt*>(cons);
+    SubExprs[TRY] = tryS;
+    SubExprs[CATCH] = catchS;
+  }
+
+  virtual SourceRange getSourceRange() const {
+    return SourceRange(TryLoc, SubExprs[CATCH]->getLocEnd());
+  }
+
+  Expr *getConstraint() { return reinterpret_cast<Expr*>(SubExprs[CONS]); }
+  const Expr *getConstraint() const {
+    return reinterpret_cast<Expr*>(SubExprs[CONS]);
+  }
+  CompoundStmt *getTryBlock() {
+    return llvm::cast<CompoundStmt>(SubExprs[TRY]);
+  }
+  const CompoundStmt *getTryBlock() const {
+    return llvm::cast<CompoundStmt>(SubExprs[TRY]);
+  }
+  CompoundStmt *getCatchBlock() {
+    return llvm::cast<CompoundStmt>(SubExprs[CATCH]);
+  }
+  const CompoundStmt *getCatchBlock() const {
+    return llvm::cast<CompoundStmt>(SubExprs[CATCH]);
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == PRETTryStmtClass;
+  }
+  static bool classof(const PRETTryStmt *) { return true; }
+
+  virtual child_iterator child_begin();
+  virtual child_iterator child_end();
+
+  virtual void EmitImpl(llvm::Serializer& S) const;
+  static PRETTryStmt* CreateImpl(llvm::Deserializer& D, ASTContext& C);
+};
+
 }  // end namespace clang
 
 #endif

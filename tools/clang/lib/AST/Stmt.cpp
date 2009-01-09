@@ -368,3 +368,7 @@ CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
   Stmts.push_back(tryBlock);
   Stmts.insert(Stmts.end(), handlers, handlers + numHandlers);
 }
+
+// PRETTryStmt
+Stmt::child_iterator PRETTryStmt::child_begin() { return &SubExprs[0]; }
+Stmt::child_iterator PRETTryStmt::child_end() { return &SubExprs[0]+END_EXPR; }

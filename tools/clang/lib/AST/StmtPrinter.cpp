@@ -503,6 +503,17 @@ void StmtPrinter::VisitCXXTryStmt(CXXTryStmt *Node) {
   OS << "\n";
 }
 
+void StmtPrinter::VisitPRETTryStmt(PRETTryStmt *Node) {
+  Indent() << "tryin (";
+  PrintExpr(Node->getConstraint());
+  OS << ") ";
+  PrintRawCompoundStmt(Node->getTryBlock());
+
+  OS << " catch ";
+  PrintRawCompoundStmt(Node->getCatchBlock());
+  OS << "\n";
+}
+
 //===----------------------------------------------------------------------===//
 //  Expr printing methods.
 //===----------------------------------------------------------------------===//
