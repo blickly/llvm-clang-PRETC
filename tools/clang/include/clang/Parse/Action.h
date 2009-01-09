@@ -541,6 +541,15 @@ public:
     return StmtEmpty();
   }
 
+  // PRET Statements
+  virtual OwningStmtResult ActOnPRETTryBlock(SourceLocation TryLoc,
+                                             ExprTy *ConstraintVal,
+                                             StmtArg TryBlock,
+                                             SourceLocation CatchLoc,
+                                             StmtArg CatchBlock) {
+    return StmtEmpty();
+  }
+
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks.
   //===--------------------------------------------------------------------===//

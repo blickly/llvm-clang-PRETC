@@ -221,7 +221,8 @@ KEYWORD(_Complex                    , EXTC90|EXTCPP|EXTCPP0x)  // C99 only
 KEYWORD(_Imaginary                  , EXTC90|NOTCPP|NOTCPP0x)  // C90 only
 
 // Special PRET keywords
-KEYWORD(tryin                       , EXTC90|EXTC99)
+//  Note that catch is also a normal C++ keyword for try-catch type exceptions
+KEYWORD(tryin                       , EXTC90|EXTC99|NOTCPP|NOTCPP0x)
 
 // Special tokens to the compiler.
 KEYWORD(__func__                    , EXTC90|EXTCPP|EXTCPP0x) // Only in C99.
@@ -231,7 +232,7 @@ KEYWORD(__PRETTY_FUNCTION__         , EXTC90|EXTC99|EXTCPP|EXTCPP0x) // GCC Exte
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , EXTC90|EXTC99) // Exts in C90/C99
 KEYWORD(bool                        , BOOLSUPPORT)
-KEYWORD(catch                       , NOTC90|NOTC99)
+KEYWORD(catch                       , EXTC90|EXTC99) // Also used in PRET C
 KEYWORD(class                       , NOTC90|NOTC99)
 KEYWORD(const_cast                  , NOTC90|NOTC99)
 KEYWORD(delete                      , NOTC90|NOTC99)

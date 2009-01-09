@@ -1033,3 +1033,29 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
                                         static_cast<Stmt*>(TryBlock.release()),
                                         Handlers, NumHandlers));
 }
+
+/// ActOnPRETTryBlock - Takes a try compound-statement and a number of
+/// handlers and creates a try statement from them.
+Action::OwningStmtResult
+Sema::ActOnPRETTryBlock(SourceLocation TryLoc, ExprTy *ConstraintVal,
+                        StmtArg TryBlock, SourceLocation CatchLoc,
+                        StmtArg CatchBlock) {
+  Expr *constraintExpr = (Expr *)ConstraintVal;
+  assert(constraintExpr && "ActOnPRETTryBlock(): missing expression");
+
+  DefaultFunctionArrayConversion(constraintExpr);
+  QualType constraintType = constraintExpr->getType();
+
+  if (!constraintType->isIntegerType()) {
+    return StmtError(Diag(TryLoc,
+                     diag::err_typecheck_statement_requires_integer)
+                     << constraintType << constraintExpr->getSourceRange());
+  }
+/*
+  return Owned(new (Context) PRETTryStmt(TryLoc, constraintExpr,
+                                  static_cast<Stmt*>(TryBlock.release()),
+                                  CatchLoc,
+                                  static_cast<Stmt*>(CatchBlock.release())));
+*/
+  return StmtEmpty();
+}

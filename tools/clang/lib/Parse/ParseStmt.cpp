@@ -1323,10 +1323,14 @@ Parser::OwningStmtResult Parser::ParseCXXCatchBlock() {
   return Actions.ActOnCXXCatchBlock(CatchLoc, ExceptionDecl, move(Block));
 }
 
-/// ParsePRETTryBlock - Parse a PRET try-block.
+/// ParsePRETTryBlock - Parse a PRET try-catch block.
 ///
 ///       try-block:
-///         'tryin' '(' expression ')' '{' compound-statement '}'
+///         'tryin' '(' expression ')' '{'
+//              compound-statement
+//          '}' 'catch' '{'
+//              compound-statement
+//          '}'
 ///
 Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
   assert(Tok.is(tok::kw_tryin) && "Expected 'tryin'");
@@ -1350,19 +1354,19 @@ Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
   OwningStmtResult TryBlock(ParseCompoundStatement());
   if (TryBlock.isInvalid())
     return move(TryBlock);
-/*
+
+  // Parse catch block
   if (Tok.isNot(tok::kw_catch))
     return StmtError(Diag(Tok, diag::err_expected_catch));
+  SourceLocation CatchLoc = ConsumeToken();
 
   if (Tok.isNot(tok::l_brace))
     return StmtError(Diag(Tok, diag::err_expected_lbrace));
   OwningStmtResult CatchBlock(ParseCompoundStatement());
   if (CatchBlock.isInvalid())
     return move(CatchBlock);
-*/
-  return StmtError();
-  /*
-  return Actions.ActOnPRETTryBlock(TryLoc, move_convert(TryBlock),
-                                  move_convert(CatchBlock));
-  */
+
+  return Actions.ActOnPRETTryBlock(TryLoc, ConstraintExpr.release(),
+                                   move(TryBlock), CatchLoc,
+                                   move(CatchBlock));
 }
