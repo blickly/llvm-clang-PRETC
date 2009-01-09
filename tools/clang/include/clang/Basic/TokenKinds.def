@@ -228,7 +228,7 @@ KEYWORD(tryin                       , KEYGNU)
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , KEYCXX|KEYGNU)
 KEYWORD(bool                        , KEYCXX)
-KEYWORD(catch                       , KEYCXX)
+KEYWORD(catch                       , KEYCXX|KEYGNU) // Also used in PRET C
 KEYWORD(class                       , KEYCXX)
 KEYWORD(const_cast                  , KEYCXX)
 KEYWORD(delete                      , KEYCXX)

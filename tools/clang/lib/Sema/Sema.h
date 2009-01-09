@@ -1265,6 +1265,12 @@ public:
                                             MultiStmtArg Handlers);
   void DiagnoseReturnInConstructorExceptionHandler(CXXTryStmt *TryBlock);
 
+  virtual OwningStmtResult ActOnPRETTryBlock(SourceLocation TryLoc,
+                                             ExprTy *ConstraintVal,
+                                             StmtArg TryBlock,
+                                             SourceLocation CatchLoc,
+                                             StmtArg CatchBlock);
+
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks: SemaExpr.cpp.
 
