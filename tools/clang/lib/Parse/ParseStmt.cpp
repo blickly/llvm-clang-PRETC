@@ -1480,7 +1480,7 @@ Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
   if (CatchBlock.isInvalid())
     return move(CatchBlock);
 
-  return Actions.ActOnPRETTryBlock(TryLoc, ConstraintExpr.release(),
+  return Actions.ActOnPRETTryBlock(TryLoc, Actions.FullExpr(ConstraintExpr),
                                    move(TryBlock), CatchLoc,
                                    move(CatchBlock));
 }

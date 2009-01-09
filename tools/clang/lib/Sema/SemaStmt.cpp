@@ -18,6 +18,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtPRET.h"
 #include "clang/Basic/TargetInfo.h"
 using namespace clang;
 
@@ -1268,10 +1269,12 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
 /// ActOnPRETTryBlock - Takes a try compound-statement and a number of
 /// handlers and creates a try statement from them.
 Action::OwningStmtResult
-Sema::ActOnPRETTryBlock(SourceLocation TryLoc, ExprTy *ConstraintVal,
+Sema::ActOnPRETTryBlock(SourceLocation TryLoc, FullExprArg ConstraintVal,
                         StmtArg TryBlock, SourceLocation CatchLoc,
                         StmtArg CatchBlock) {
-  Expr *constraintExpr = (Expr *)ConstraintVal;
+  OwningExprResult ConstraintResult(ConstraintVal.release());
+  
+  Expr *constraintExpr = ConstraintResult.takeAs<Expr>();
   assert(constraintExpr && "ActOnPRETTryBlock(): missing expression");
 
   DefaultFunctionArrayConversion(constraintExpr);
@@ -1282,11 +1285,9 @@ Sema::ActOnPRETTryBlock(SourceLocation TryLoc, ExprTy *ConstraintVal,
                      diag::err_typecheck_statement_requires_integer)
                      << constraintType << constraintExpr->getSourceRange());
   }
-/*
+
   return Owned(new (Context) PRETTryStmt(TryLoc, constraintExpr,
                                   static_cast<Stmt*>(TryBlock.release()),
                                   CatchLoc,
                                   static_cast<Stmt*>(CatchBlock.release())));
-*/
-  return StmtEmpty();
 }

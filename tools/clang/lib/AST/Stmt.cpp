@@ -16,6 +16,7 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtPRET.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
@@ -585,3 +586,7 @@ CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
   Stmts.push_back(tryBlock);
   Stmts.insert(Stmts.end(), handlers, handlers + numHandlers);
 }
+
+// PRETTryStmt
+Stmt::child_iterator PRETTryStmt::child_begin() { return &SubExprs[0]; }
+Stmt::child_iterator PRETTryStmt::child_end() { return &SubExprs[0]+END_EXPR; }

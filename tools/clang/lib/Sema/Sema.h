@@ -1266,7 +1266,7 @@ public:
   void DiagnoseReturnInConstructorExceptionHandler(CXXTryStmt *TryBlock);
 
   virtual OwningStmtResult ActOnPRETTryBlock(SourceLocation TryLoc,
-                                             ExprTy *ConstraintVal,
+                                             FullExprArg ConstraintVal,
                                              StmtArg TryBlock,
                                              SourceLocation CatchLoc,
                                              StmtArg CatchBlock);

@@ -357,6 +357,35 @@ TemplateStmtInstantiator::VisitCXXCatchStmt(CXXCatchStmt *S) {
 }
 
 //===----------------------------------------------------------------------===/
+//  PRET timing construct statements
+//===----------------------------------------------------------------------===/
+Sema::OwningStmtResult
+TemplateStmtInstantiator::VisitPRETTryStmt(PRETTryStmt *S) {
+  // Instantiate the constraint expression.
+  OwningExprResult Constraint = SemaRef.InstantiateExpr(S->getConstraint(),
+                                                        TemplateArgs);
+  if (Constraint.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the try block.
+  //OwningStmtResult TryBlock = VisitCompoundStmt(S->getTryBlock());
+  OwningStmtResult TryBlock = SemaRef.InstantiateStmt(S->getTryBlock(),
+                                                      TemplateArgs);
+  if (TryBlock.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the catch block.
+  OwningStmtResult CatchBlock = SemaRef.InstantiateStmt(S->getCatchBlock(),
+                                                        TemplateArgs);
+  if (CatchBlock.isInvalid())
+    return SemaRef.StmtError();
+
+  return SemaRef.ActOnPRETTryBlock(S->getTryLoc(), FullExpr(Constraint),
+                                   move(TryBlock),
+                                   S->getCatchLoc(), move(CatchBlock));
+}
+
+//===----------------------------------------------------------------------===/
 //  Objective-C statements
 //===----------------------------------------------------------------------===/
 Sema::OwningStmtResult 
