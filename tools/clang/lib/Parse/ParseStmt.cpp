@@ -172,6 +172,9 @@ Parser::ParseStatementOrDeclaration(bool OnlyStatement) {
 
   case tok::kw_try:                 // C++ 15: try-block
     return ParseCXXTryBlock();
+
+  case tok::kw_tryin:               // PRET: tryin-block
+    return ParsePRETTryBlock();
   }
 
   // If we reached this code, the statement must end in a semicolon.
@@ -1318,4 +1321,48 @@ Parser::OwningStmtResult Parser::ParseCXXCatchBlock() {
     return move(Block);
 
   return Actions.ActOnCXXCatchBlock(CatchLoc, ExceptionDecl, move(Block));
+}
+
+/// ParsePRETTryBlock - Parse a PRET try-block.
+///
+///       try-block:
+///         'tryin' '(' expression ')' '{' compound-statement '}'
+///
+Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
+  assert(Tok.is(tok::kw_tryin) && "Expected 'tryin'");
+
+  SourceLocation TryLoc = ConsumeToken();
+
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(Tok, diag::err_expected_lparen_after) << "tryin";
+    SkipUntil(tok::semi);
+    return StmtError();
+  }
+
+  // Parse the timing constraint.
+  OwningExprResult ConstraintExpr(Actions);
+  if (ParseParenExprOrCondition(ConstraintExpr))
+    return StmtError();
+
+  // Parse body of tryin block
+  if (Tok.isNot(tok::l_brace))
+    return StmtError(Diag(Tok, diag::err_expected_lbrace));
+  OwningStmtResult TryBlock(ParseCompoundStatement());
+  if (TryBlock.isInvalid())
+    return move(TryBlock);
+/*
+  if (Tok.isNot(tok::kw_catch))
+    return StmtError(Diag(Tok, diag::err_expected_catch));
+
+  if (Tok.isNot(tok::l_brace))
+    return StmtError(Diag(Tok, diag::err_expected_lbrace));
+  OwningStmtResult CatchBlock(ParseCompoundStatement());
+  if (CatchBlock.isInvalid())
+    return move(CatchBlock);
+*/
+  return StmtError();
+  /*
+  return Actions.ActOnPRETTryBlock(TryLoc, move_convert(TryBlock),
+                                  move_convert(CatchBlock));
+  */
 }

@@ -220,6 +220,9 @@ KEYWORD(_Bool                       , EXTC90|EXTCPP|EXTCPP0x)  // C99 only
 KEYWORD(_Complex                    , EXTC90|EXTCPP|EXTCPP0x)  // C99 only
 KEYWORD(_Imaginary                  , EXTC90|NOTCPP|NOTCPP0x)  // C90 only
 
+// Special PRET keywords
+KEYWORD(tryin                       , EXTC90|EXTC99)
+
 // Special tokens to the compiler.
 KEYWORD(__func__                    , EXTC90|EXTCPP|EXTCPP0x) // Only in C99.
 KEYWORD(__FUNCTION__                , EXTC90|EXTC99|EXTCPP|EXTCPP0x) // GCC Extension.
