@@ -76,6 +76,7 @@ enum ProgActions {
   RewriteBlocks,                // ObjC->C Rewriter for Blocks.
   RewriteMacros,                // Expand macros but not #includes.
   RewriteTest,                  // Rewriter playground
+  RewritePRET,                  // Rewriter for PRET compilation.
   HTMLTest,                     // HTML displayer testing stuff.
   EmitAssembly,                 // Emit a .s file.
   EmitLLVM,                     // Emit a .ll file.
@@ -141,6 +142,8 @@ ProgAction(llvm::cl::desc("Choose output type:"), llvm::cl::ZeroOrMore,
                         "Build ASTs and emit .ast file"),
              clEnumValN(RewriteTest, "rewrite-test",
                         "Rewriter playground"),
+             clEnumValN(RewritePRET, "rewrite-pret",
+                        "Rewriter for processing pret programs"),
              clEnumValN(RewriteObjC, "rewrite-objc",
                         "Rewrite ObjC into C (code rewriter example)"),
              clEnumValN(RewriteMacros, "rewrite-macros",
@@ -1331,6 +1334,9 @@ static ASTConsumer* CreateASTConsumer(const std::string& InFile,
     case RewriteBlocks:
       return CreateBlockRewriter(InFile, OutputFile, Diag, LangOpts);
       
+    case RewritePRET:
+      return CreatePRETRewriter(InFile, OutputFile, Diag, LangOpts);
+
     case RunAnalysis:
       return CreateAnalysisConsumer(&AnalysisList[0],
                                     &AnalysisList[0]+AnalysisList.size(),

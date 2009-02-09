@@ -36,5 +36,6 @@ add_clang_executable(clang
   RewriteMacros.cpp
   RewriteObjC.cpp
   RewriteTest.cpp
+  RewritePRET.cpp
   SerializationTest.cpp
   )

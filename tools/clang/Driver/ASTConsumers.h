@@ -73,6 +73,11 @@ ASTConsumer *CreateBlockRewriter(const std::string& InFile,
                                  Diagnostic &Diags,
                                  const LangOptions &LangOpts);
   
+ASTConsumer *CreatePRETRewriter(const std::string& InFile,
+                                const std::string& OutFile,
+                                Diagnostic &Diags,
+                                const LangOptions &LangOpts);
+
 ASTConsumer *CreateInheritanceViewer(const std::string& clsname);
 
 } // end clang namespace
