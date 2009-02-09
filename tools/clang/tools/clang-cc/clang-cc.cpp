@@ -186,6 +186,7 @@ enum ProgActions {
   RewriteBlocks,                // ObjC->C Rewriter for Blocks.
   RewriteMacros,                // Expand macros but not #includes.
   RewriteTest,                  // Rewriter playground
+  RewritePRET,                  // Rewriter for PRET compilation.
   FixIt,                        // Fix-It Rewriter
   HTMLTest,                     // HTML displayer testing stuff.
   EmitAssembly,                 // Emit a .s file.
@@ -257,6 +258,8 @@ ProgAction(llvm::cl::desc("Choose output type:"), llvm::cl::ZeroOrMore,
                         "Build ASTs and convert to LLVM, discarding output"),
              clEnumValN(RewriteTest, "rewrite-test",
                         "Rewriter playground"),
+             clEnumValN(RewritePRET, "rewrite-pret",
+                        "Rewriter for processing pret programs"),
              clEnumValN(RewriteObjC, "rewrite-objc",
                         "Rewrite ObjC into C (code rewriter example)"),
              clEnumValN(RewriteMacros, "rewrite-macros",
@@ -1828,6 +1831,12 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
   case RewriteBlocks:
     Consumer.reset(CreateBlockRewriter(InFile, PP.getDiagnostics(),
                                        PP.getLangOptions()));
+    break;
+
+  case RewritePRET:
+    OS.reset(ComputeOutFile(InFile, "rewritten.c", true, OutPath));
+    Consumer.reset(CreatePRETRewriter(InFile, OS.get(), PP.getDiagnostics(),
+                                      PP.getLangOptions()));
     break;
 
   case RunAnalysis: {

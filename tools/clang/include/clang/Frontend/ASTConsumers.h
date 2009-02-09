@@ -65,6 +65,14 @@ ASTConsumer *CreateObjCRewriter(const std::string& InFile,
                                 const LangOptions &LOpts,
                                 bool SilenceRewriteMacroWarning);
 
+// PRET rewriter: Rewrites PRET-C timing constructs into inline assembly
+// corresponding to the corresponding PRET deadline instructions.
+ASTConsumer *CreatePRETRewriter(const std::string& InFile,
+                                llvm::raw_ostream* OS,
+                                Diagnostic &Diags,
+                                const LangOptions &LOpts);
+
+
 // LLVM code generator: uses the code generation backend to generate LLVM
 // assembly. This runs optimizations depending on the CompileOptions
 // parameter. The output depends on the Action parameter.
