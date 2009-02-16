@@ -60,11 +60,20 @@ namespace {
 
     void InsertText(SourceLocation Loc, const char *StrData, unsigned StrLen,
                     bool InsertAfter = true) {
-      // If insertion succeeded or warning disabled return with no warning.
+      // If insertion succeeded return with no warning.
       if (!Rewrite.InsertText(Loc, StrData, StrLen, InsertAfter))
         return;
       
       Diags.Report(Context->getFullLoc(Loc), RewriteFailedDiag);
+    }
+
+    void ReplaceText(SourceLocation Start, unsigned OrigLength,
+                     const char *NewStr, unsigned NewLength) {
+      // If removal succeeded return with no warning.
+      if (!Rewrite.ReplaceText(Start, OrigLength, NewStr, NewLength))
+        return;
+      
+      Diags.Report(Context->getFullLoc(Start), RewriteFailedDiag);
     }
 
     // Expression Rewriting
@@ -126,6 +135,33 @@ void RewritePRET::HandleTopLevelSingleDecl(Decl *D) {
 
 Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   printf("Rewriting a PRET tryin statment.\n");
+  SourceLocation startLoc = S->getLocStart();
+  const char *startBuf = SM->getCharacterData(startLoc);
+
+  std::string buf;
+  // allocate jmp_buf on stack for now
+  buf = "jmp_buf buf;\n";
+  buf += "DEADLOADBRANCH";
+  // Argument to tryin block actually goes to DEADBRANCH statement
+  ReplaceText(startLoc, 5, buf.c_str(), buf.size());
+  // Add in if and setjmp code
+  startLoc = S->getTryBlock()->getLocStart();
+  buf = ";\n";
+  buf += "if (_setjmp(buf) == 0) /* tryin block */ ";
+  InsertText(startLoc, buf.c_str(), buf.size());
+
+  // Add DEADEND at end of try block
+  startLoc = S->getTryBlock()->getLocEnd();
+  startBuf = SM->getCharacterData(startLoc);
+  assert((*startBuf == '}') && "bogus tryin block");
+  buf = "DEADLOAD(0);\n";
+  InsertText(startLoc, buf.c_str(), buf.size());
+  // Replace catch stament with an else statment
+  startLoc = startLoc.getFileLocWithOffset(1);
+  buf = " else /* catch block */ ";
+  const char *lBraceLoc = strchr(startBuf, '{');
+  ReplaceText(startLoc, lBraceLoc-startBuf-1, buf.c_str(), buf.size());
+
   return S;
 }
 
