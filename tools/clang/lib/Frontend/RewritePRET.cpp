@@ -11,10 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-//Needed?
-//#include "clang/AST/ParentMap.h"
-
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Rewrite/Rewriter.h"
 #include "clang/AST/AST.h"
@@ -71,6 +67,9 @@ namespace {
       Diags.Report(Context->getFullLoc(Loc), RewriteFailedDiag);
     }
 
+    // Expression Rewriting
+    Stmt *RewriteFunctionBody(Stmt *S);
+    Stmt *RewritePRETTryStmt(PRETTryStmt *S);
   };
 }
 
@@ -109,11 +108,59 @@ void RewritePRET::Initialize(ASTContext &context) {
 //===----------------------------------------------------------------------===//
 
 void RewritePRET::HandleTopLevelSingleDecl(Decl *D) {
+
+  SourceLocation Loc = D->getLocation();
+  Loc = SM->getInstantiationLoc(Loc);
+
+  // If this is for a builtin, ignore it.
+  if (Loc.isInvalid()) return;
+
+  // No rewriting takes place for included files.
+  if (SM->isFromMainFile(Loc))
+    return HandleDeclInMainFile(D);
+}
+
+//===----------------------------------------------------------------------===//
+// Syntactic (non-AST) Rewriting Code
+//===----------------------------------------------------------------------===//
+
+Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
+  printf("Rewriting a PRET tryin statment.\n");
+  return S;
 }
 
 //===----------------------------------------------------------------------===//
 // Function Body / Expression rewriting
 //===----------------------------------------------------------------------===//
+
+Stmt *RewritePRET::RewriteFunctionBody(Stmt *S) {
+  // Perform a bottom up rewrite of all children.
+  for (Stmt::child_iterator CI = S->child_begin(), E = S->child_end();
+       CI != E; ++CI) {
+    if (*CI) {
+      Stmt *newStmt = RewriteFunctionBody(*CI);
+      if (newStmt)
+        *CI = newStmt;
+    }
+  }
+
+  if (PRETTryStmt *StmtTry = dyn_cast<PRETTryStmt>(S))
+    return RewritePRETTryStmt(StmtTry);
+
+  // Return this Stmt without modifications.
+  return S;
+}
+
+/// HandleDeclInMainFile - This is called for each top-level decl defined in the
+/// main file of the input.
+void RewritePRET::HandleDeclInMainFile(Decl *D) {
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (CompoundStmt *Body = FD->getCompoundBody(*Context)) {
+      Body = cast_or_null<CompoundStmt>(RewriteFunctionBody(Body));
+      FD->setBody(Body);
+    }
+  }
+}
 
 void RewritePRET::HandleTranslationUnit(ASTContext &C) {
   printf("In HandleTranslationUnit of RewritePRET\n");
