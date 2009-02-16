@@ -135,8 +135,8 @@ void RewritePRET::Initialize(ASTContext &context) {
 
 void RewritePRET::HandleTopLevelDecl(Decl *D) {
   // Show where this is called.
-  std::string buf = "/* HandleTopLevelDecl */ ";
-  InsertText(D->getLocation(), buf.c_str(), buf.size(), false);
+//  std::string buf = "/* HandleTopLevelDecl */ ";
+//  InsertText(D->getLocation(), buf.c_str(), buf.size(), false);
 
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     if (Stmt *Body = FD->getBody()) {
@@ -151,6 +151,33 @@ void RewritePRET::HandleTopLevelDecl(Decl *D) {
 
 Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   printf("Rewriting a PRET tryin statment.\n");
+  SourceLocation startLoc = S->getLocStart();
+  const char *startBuf = SM->getCharacterData(startLoc);
+
+  std::string buf;
+  // allocate jmp_buf on stack for now
+  buf = "jmp_buf buf;\n";
+  buf += "DEADBRANCH";
+  // Argument to tryin block actually goes to DEADBRANCH statement
+  ReplaceText(startLoc, 5, buf.c_str(), buf.size());
+  // Add in if and setjmp code
+  startLoc = S->getTryBlock()->getLocStart();
+  buf = ";\n";
+  buf += "if (_setjmp(buf) == 0) /* tryin block */ ";
+  InsertText(startLoc, buf.c_str(), buf.size());
+
+  // Add DEADEND at end of try block
+  startLoc = S->getTryBlock()->getLocEnd();
+  startBuf = SM->getCharacterData(startLoc);
+  assert((*startBuf == '}') && "bogus tryin block");
+  buf = "DEADLOAD(0);\n";
+  InsertText(startLoc, buf.c_str(), buf.size());
+  // Replace catch stament with an else statment
+  startLoc = startLoc.getFileLocWithOffset(1);
+  buf = " else /* catch block */ ";
+  const char *lBraceLoc = strchr(startBuf, '{');
+  ReplaceText(startLoc, lBraceLoc-startBuf-1, buf.c_str(), buf.size());
+
   return S;
 }
 
