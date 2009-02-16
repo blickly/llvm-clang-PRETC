@@ -13,6 +13,7 @@
 
 #include "ASTConsumers.h"
 #include "clang/Rewrite/Rewriter.h"
+#include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/TranslationUnit.h"
 #include "clang/Basic/SourceManager.h"
@@ -58,7 +59,6 @@ namespace {
     virtual void HandleTopLevelDecl(Decl *D);
     RewritePRET(std::string inFile, std::string outFile,
                 Diagnostic &D, const LangOptions &LOpts);
-
     ~RewritePRET() {}
     
     virtual void HandleTranslationUnit(TranslationUnit& TU);
@@ -91,6 +91,9 @@ namespace {
       Diags.Report(Context->getFullLoc(Start), RewriteFailedDiag);
     }
 
+    // Expression Rewriting
+    Stmt *RewriteFunctionBody(Stmt *S);
+    Stmt *RewritePRETTryStmt(PRETTryStmt *S);
   };
 }
 
@@ -131,11 +134,48 @@ void RewritePRET::Initialize(ASTContext &context) {
 //===----------------------------------------------------------------------===//
 
 void RewritePRET::HandleTopLevelDecl(Decl *D) {
+  // Show where this is called.
+  std::string buf = "/* HandleTopLevelDecl */ ";
+  InsertText(D->getLocation(), buf.c_str(), buf.size(), false);
+
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (Stmt *Body = FD->getBody()) {
+      FD->setBody(RewriteFunctionBody(Body));
+    }
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Syntactic (non-AST) Rewriting Code
+//===----------------------------------------------------------------------===//
+
+Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
+  printf("Rewriting a PRET tryin statment.\n");
+  return S;
 }
 
 //===----------------------------------------------------------------------===//
 // Function Body / Expression rewriting
 //===----------------------------------------------------------------------===//
+
+Stmt *RewritePRET::RewriteFunctionBody(Stmt *S) {
+  // Perform a bottom up rewrite of all children.
+  for (Stmt::child_iterator CI = S->child_begin(), E = S->child_end();
+       CI != E; ++CI) {
+    if (*CI) {
+      Stmt *newStmt = RewriteFunctionBody(*CI);
+      if (newStmt) 
+        *CI = newStmt;
+    }
+  }
+
+  
+  if (PRETTryStmt *StmtTry = dyn_cast<PRETTryStmt>(S))
+    return RewritePRETTryStmt(StmtTry);
+
+  // Return this Stmt without modifications.
+  return S;
+}
 
 void RewritePRET::HandleTranslationUnit(TranslationUnit& TU) {
   printf("In HandleTranslationUnit of RewritePRET\n");
