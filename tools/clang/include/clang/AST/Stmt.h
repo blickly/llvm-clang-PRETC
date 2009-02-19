@@ -1334,11 +1334,13 @@ public:
   static CXXTryStmt* CreateImpl(llvm::Deserializer& D, ASTContext& C);
 };
 
+#define DEADLINE_REGISTERS 8
 /// PRETTryStmt - A PRET try-catch block.
 class PRETTryStmt : public Stmt {
   enum { CONS, TRY, CATCH, END_EXPR };
   Stmt* SubExprs[END_EXPR];
   SourceLocation TryLoc, CatchLoc;
+  int DeadlineRegister;
 
 public:
   PRETTryStmt(SourceLocation tryLoc, Expr *cons, Stmt *tryS,
@@ -1347,6 +1349,16 @@ public:
     SubExprs[CONS] = reinterpret_cast<Stmt*>(cons);
     SubExprs[TRY] = tryS;
     SubExprs[CATCH] = catchS;
+    DeadlineRegister = DEADLINE_REGISTERS;
+  }
+
+  int getDeadlineRegister() const { return DeadlineRegister; }
+  void setDeadlineRegister(int dr) {
+    if (dr < DEADLINE_REGISTERS) {
+      DeadlineRegister = dr;
+    } else {
+      fprintf(stderr, "Invalid deadline register request: %d\n", dr);
+    }
   }
 
   virtual SourceRange getSourceRange() const {

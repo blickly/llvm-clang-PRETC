@@ -46,6 +46,8 @@ namespace {
     std::string OutFileName;
      
     std::string Preamble;
+
+    int CurrentDeadlineRegister;
   public:
     virtual void Initialize(ASTContext &context);
 
@@ -123,9 +125,11 @@ void RewritePRET::Initialize(ASTContext &context) {
   MainFileEnd = MainBuf->getBufferEnd();
      
   Rewrite.setSourceMgr(Context->getSourceManager());
+  CurrentDeadlineRegister = 0;
 
   Preamble = "#include <setjmp.h>\n";
   Preamble += "#include \"deadline.h\"\n";
+  Preamble += "\n";
 }
 
 
@@ -150,16 +154,21 @@ void RewritePRET::HandleTopLevelDecl(Decl *D) {
 //===----------------------------------------------------------------------===//
 
 Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
-  printf("Rewriting a PRET tryin statment.\n");
+  //printf("Rewriting a PRET tryin statment.\n");
   SourceLocation startLoc = S->getLocStart();
   const char *startBuf = SM->getCharacterData(startLoc);
 
   std::string buf;
+  std::string deadreg;
+  S->setDeadlineRegister(CurrentDeadlineRegister);
+  CurrentDeadlineRegister++;
+  deadreg = '0' + S->getDeadlineRegister();
   // allocate jmp_buf on stack for now
   buf = "jmp_buf buf;\n";
-  buf += "DEADBRANCH";
+  buf += "DEADBRANCH" + deadreg;
   // Argument to tryin block actually goes to DEADBRANCH statement
-  ReplaceText(startLoc, 5, buf.c_str(), buf.size());
+  const char *lParenLoc = strchr(startBuf, '(');
+  ReplaceText(startLoc, lParenLoc-startBuf, buf.c_str(), buf.size());
   // Add in if and setjmp code
   startLoc = S->getTryBlock()->getLocStart();
   buf = ";\n";
@@ -170,7 +179,7 @@ Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   startLoc = S->getTryBlock()->getLocEnd();
   startBuf = SM->getCharacterData(startLoc);
   assert((*startBuf == '}') && "bogus tryin block");
-  buf = "DEADLOAD(0);\n";
+  buf = "DEADLOAD" + deadreg + "(0);\n";
   InsertText(startLoc, buf.c_str(), buf.size());
   // Replace catch stament with an else statment
   startLoc = startLoc.getFileLocWithOffset(1);
@@ -186,16 +195,21 @@ Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
 //===----------------------------------------------------------------------===//
 
 Stmt *RewritePRET::RewriteFunctionBody(Stmt *S) {
+  int nextDeadReg = CurrentDeadlineRegister;
+  int prevDeadReg = CurrentDeadlineRegister;
   // Perform a bottom up rewrite of all children.
   for (Stmt::child_iterator CI = S->child_begin(), E = S->child_end();
        CI != E; ++CI) {
     if (*CI) {
+      CurrentDeadlineRegister = prevDeadReg;
       Stmt *newStmt = RewriteFunctionBody(*CI);
+      nextDeadReg = std::max(nextDeadReg, CurrentDeadlineRegister);
       if (newStmt) 
         *CI = newStmt;
     }
   }
-
+  //printf("prev: %d\tnext: %d\n", prevDeadReg, nextDeadReg);
+  CurrentDeadlineRegister = nextDeadReg;
   
   if (PRETTryStmt *StmtTry = dyn_cast<PRETTryStmt>(S))
     return RewritePRETTryStmt(StmtTry);
