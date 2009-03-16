@@ -36,11 +36,13 @@ namespace {
     FileID MainFileID;
     const char *MainFileStart, *MainFileEnd;
     SourceLocation LastIncLoc;
-    
+
     std::string InFileName;
     llvm::raw_ostream* OutFile;
      
     std::string Preamble;
+
+    int CurrentDeadlineRegister;
   public:
     virtual void Initialize(ASTContext &context);
     
@@ -72,12 +74,13 @@ namespace {
       // If removal succeeded return with no warning.
       if (!Rewrite.ReplaceText(Start, OrigLength, NewStr, NewLength))
         return;
-      
+
       Diags.Report(Context->getFullLoc(Start), RewriteFailedDiag);
     }
 
     // Expression Rewriting
     Stmt *RewriteFunctionBody(Stmt *S);
+    Stmt *RewriteMainBody(Stmt *S);
     Stmt *RewritePRETTryStmt(PRETTryStmt *S);
   };
 }
@@ -98,7 +101,7 @@ void RewritePRET::Initialize(ASTContext &context) {
   Context = &context;
   SM = &Context->getSourceManager();
   TUDecl = Context->getTranslationUnitDecl();
- 
+
   // Get the ID and start/end of the main file.
   MainFileID = SM->getMainFileID();
   const llvm::MemoryBuffer *MainBuf = SM->getBuffer(MainFileID);
@@ -107,8 +110,10 @@ void RewritePRET::Initialize(ASTContext &context) {
      
   Rewrite.setSourceMgr(Context->getSourceManager(), Context->getLangOptions());
 
+  CurrentDeadlineRegister = 0;
   Preamble = "#include <setjmp.h>\n";
   Preamble += "#include \"deadline.h\"\n";
+  Preamble += "\n";
 }
 
 
@@ -134,27 +139,31 @@ void RewritePRET::HandleTopLevelSingleDecl(Decl *D) {
 //===----------------------------------------------------------------------===//
 
 Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
-  printf("Rewriting a PRET tryin statment.\n");
+  //printf("Rewriting a PRET tryin statment.\n");
   SourceLocation startLoc = S->getLocStart();
   const char *startBuf = SM->getCharacterData(startLoc);
 
   std::string buf;
-  // allocate jmp_buf on stack for now
-  buf = "jmp_buf buf;\n";
-  buf += "DEADLOADBRANCH";
+  std::string deadreg;
+  S->setDeadlineRegister(CurrentDeadlineRegister);
+  CurrentDeadlineRegister++;
+  deadreg = '0' + S->getDeadlineRegister();
+  buf += "if (_setjmp(PRET_jmpbuf_" + deadreg
+         + ") == 0) /* tryin block */ {\n";
+  buf += "DEADLOADBRANCH" + deadreg;
   // Argument to tryin block actually goes to DEADBRANCH statement
-  ReplaceText(startLoc, 5, buf.c_str(), buf.size());
+  const char *lParenLoc = strchr(startBuf, '(');
+  ReplaceText(startLoc, lParenLoc-startBuf, buf.c_str(), buf.size());
   // Add in if and setjmp code
   startLoc = S->getTryBlock()->getLocStart();
-  buf = ";\n";
-  buf += "if (_setjmp(buf) == 0) /* tryin block */ ";
-  InsertText(startLoc, buf.c_str(), buf.size());
+  buf = ";";
+  ReplaceText(startLoc, 1, buf.c_str(), buf.size());
 
   // Add DEADEND at end of try block
   startLoc = S->getTryBlock()->getLocEnd();
   startBuf = SM->getCharacterData(startLoc);
   assert((*startBuf == '}') && "bogus tryin block");
-  buf = "DEADLOAD(0);\n";
+  buf = "DEADLOAD" + deadreg + "(0);\n";
   InsertText(startLoc, buf.c_str(), buf.size());
   // Replace catch stament with an else statment
   startLoc = startLoc.getFileLocWithOffset(1);
@@ -165,20 +174,42 @@ Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   return S;
 }
 
+Stmt *RewritePRET::RewriteMainBody(Stmt *S) {
+  SourceLocation startLoc = S->getLocStart();
+  startLoc = startLoc.getFileLocWithOffset(1);
+  std::string buf = "";
+  for (int i = 0; i < CurrentDeadlineRegister; i++) {
+    buf += "register_jmpbuf(";
+    buf += '0' + i;
+    buf += ", &PRET_jmpbuf_";
+    buf += '0' + i;
+    buf += ");\n";
+  }
+  InsertText(startLoc, buf.c_str(), buf.size());
+
+  return S;
+}
+
 //===----------------------------------------------------------------------===//
 // Function Body / Expression rewriting
 //===----------------------------------------------------------------------===//
 
 Stmt *RewritePRET::RewriteFunctionBody(Stmt *S) {
+  int nextDeadReg = CurrentDeadlineRegister;
+  int prevDeadReg = CurrentDeadlineRegister;
   // Perform a bottom up rewrite of all children.
   for (Stmt::child_iterator CI = S->child_begin(), E = S->child_end();
        CI != E; ++CI) {
     if (*CI) {
+      CurrentDeadlineRegister = prevDeadReg;
       Stmt *newStmt = RewriteFunctionBody(*CI);
+      nextDeadReg = std::max(nextDeadReg, CurrentDeadlineRegister);
       if (newStmt)
         *CI = newStmt;
     }
   }
+  //printf("prev: %d\tnext: %d\n", prevDeadReg, nextDeadReg);
+  CurrentDeadlineRegister = nextDeadReg;
 
   if (PRETTryStmt *StmtTry = dyn_cast<PRETTryStmt>(S))
     return RewritePRETTryStmt(StmtTry);
@@ -204,12 +235,17 @@ void RewritePRET::HandleTranslationUnit(ASTContext &C) {
   if (Diags.hasErrorOccurred())
     return;
 
+  for (int i = 0; i < CurrentDeadlineRegister; i++) {
+    std::string buf_name = "PRET_jmpbuf_";
+    buf_name += '0' + i;
+    Preamble += "jmp_buf " + buf_name + ";\n";
+  }
   InsertText(SM->getLocForStartOfFile(MainFileID), 
              Preamble.c_str(), Preamble.size(), false);
 
   // Get the buffer corresponding to MainFileID.  If we haven't changed it, then
   // we are done.
-  if (const RewriteBuffer *RewriteBuf = 
+  if (const RewriteBuffer *RewriteBuf =
       Rewrite.getRewriteBufferFor(MainFileID)) {
     //printf("Changed:\n");
     *OutFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
