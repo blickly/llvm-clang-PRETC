@@ -224,6 +224,16 @@ void RewritePRET::HandleDeclInMainFile(Decl *D) {
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     if (CompoundStmt *Body = FD->getCompoundBody(*Context)) {
       Body = cast_or_null<CompoundStmt>(RewriteFunctionBody(Body));
+      assert(Body && "Rewriting functions nullified Body");
+      SourceLocation typeSpecLoc = FD->getTypeSpecStartLoc();
+      std::string funDecl = SM->getCharacterData(typeSpecLoc);
+      std::string::size_type endl_loc = funDecl.find( "\n", 0);
+      std::string::size_type main_loc = funDecl.find( "main", 0);
+      if (endl_loc != std::string::npos && main_loc != std::string::npos
+                && main_loc < endl_loc) {
+        printf("Found main()\n");
+        Body = cast_or_null<CompoundStmt>(RewriteMainBody(Body));
+      }
       FD->setBody(Body);
     }
   }
