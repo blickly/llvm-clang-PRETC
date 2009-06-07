@@ -361,10 +361,16 @@ TemplateStmtInstantiator::VisitCXXCatchStmt(CXXCatchStmt *S) {
 //===----------------------------------------------------------------------===/
 Sema::OwningStmtResult
 TemplateStmtInstantiator::VisitPRETTryStmt(PRETTryStmt *S) {
-  // Instantiate the constraint expression.
-  OwningExprResult Constraint = SemaRef.InstantiateExpr(S->getConstraint(),
+  // Instantiate the lower bound expression.
+  OwningExprResult LowerBound = SemaRef.InstantiateExpr(S->getLowerBound(),
                                                         TemplateArgs);
-  if (Constraint.isInvalid())
+  if (LowerBound.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the upper bound expression.
+  OwningExprResult UpperBound = SemaRef.InstantiateExpr(S->getUpperBound(),
+                                                        TemplateArgs);
+  if (UpperBound.isInvalid())
     return SemaRef.StmtError();
 
   // Instantiate the try block.
@@ -380,7 +386,9 @@ TemplateStmtInstantiator::VisitPRETTryStmt(PRETTryStmt *S) {
   if (CatchBlock.isInvalid())
     return SemaRef.StmtError();
 
-  return SemaRef.ActOnPRETTryBlock(S->getTryLoc(), FullExpr(Constraint),
+  return SemaRef.ActOnPRETTryBlock(S->getTryLoc(),
+                                   FullExpr(LowerBound),
+                                   FullExpr(UpperBound),
                                    move(TryBlock),
                                    S->getCatchLoc(), move(CatchBlock));
 }

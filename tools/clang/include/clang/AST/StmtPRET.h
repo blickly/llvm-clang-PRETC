@@ -14,16 +14,17 @@ namespace clang {
 #define DEADLINE_REGISTERS 8
 /// PRETTryStmt - A PRET try-catch block.
 class PRETTryStmt : public Stmt {
-  enum { CONS, TRY, CATCH, END_EXPR };
+  enum { LOWERBOUND, UPPERBOUND, TRY, CATCH, END_EXPR };
   Stmt* SubExprs[END_EXPR];
   SourceLocation TryLoc, CatchLoc;
   int DeadlineRegister;
 
 public:
-  PRETTryStmt(SourceLocation tryLoc, Expr *cons, Stmt *tryS,
+  PRETTryStmt(SourceLocation tryLoc, Expr *lb, Expr *ub, Stmt *tryS,
               SourceLocation catchLoc, Stmt *catchS)
     : Stmt(PRETTryStmtClass), TryLoc(tryLoc), CatchLoc(catchLoc) {
-    SubExprs[CONS] = reinterpret_cast<Stmt*>(cons);
+    SubExprs[LOWERBOUND] = reinterpret_cast<Stmt*>(lb);
+    SubExprs[UPPERBOUND] = reinterpret_cast<Stmt*>(ub);
     SubExprs[TRY] = tryS;
     SubExprs[CATCH] = catchS;
     DeadlineRegister = DEADLINE_REGISTERS;
@@ -42,9 +43,13 @@ public:
     return SourceRange(TryLoc, SubExprs[CATCH]->getLocEnd());
   }
 
-  Expr *getConstraint() { return reinterpret_cast<Expr*>(SubExprs[CONS]); }
-  const Expr *getConstraint() const {
-    return reinterpret_cast<Expr*>(SubExprs[CONS]);
+  Expr *getLowerBound() { return reinterpret_cast<Expr*>(SubExprs[LOWERBOUND]); }
+  const Expr *getLowerBound() const {
+    return reinterpret_cast<Expr*>(SubExprs[LOWERBOUND]);
+  }
+  Expr *getUpperBound() { return reinterpret_cast<Expr*>(SubExprs[UPPERBOUND]); }
+  const Expr *getUpperBound() const {
+    return reinterpret_cast<Expr*>(SubExprs[UPPERBOUND]);
   }
   CompoundStmt *getTryBlock() {
     return llvm::cast<CompoundStmt>(SubExprs[TRY]);

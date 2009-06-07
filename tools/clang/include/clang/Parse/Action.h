@@ -618,7 +618,8 @@ public:
 
   // PRET Statements
   virtual OwningStmtResult ActOnPRETTryBlock(SourceLocation TryLoc,
-                                             FullExprArg ConstraintVal,
+                                             FullExprArg LowerBoundVal,
+                                             FullExprArg UpperBoundVal,
                                              StmtArg TryBlock,
                                              SourceLocation CatchLoc,
                                              StmtArg CatchBlock) {

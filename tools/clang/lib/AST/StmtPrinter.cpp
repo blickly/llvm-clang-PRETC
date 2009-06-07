@@ -469,7 +469,14 @@ void StmtPrinter::VisitCXXTryStmt(CXXTryStmt *Node) {
 
 void StmtPrinter::VisitPRETTryStmt(PRETTryStmt *Node) {
   Indent() << "tryin (";
-  PrintExpr(Node->getConstraint());
+  if (Node->getLowerBound()) {
+    PrintExpr(Node->getLowerBound());
+  }
+  OS << ';';
+  if (Node->getUpperBound()) {
+    OS << ' ';
+    PrintExpr(Node->getUpperBound());
+  }
   OS << ") ";
   PrintRawCompoundStmt(Node->getTryBlock());
 

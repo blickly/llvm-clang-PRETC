@@ -1440,7 +1440,7 @@ Parser::OwningStmtResult Parser::ParseCXXCatchBlock() {
 /// ParsePRETTryBlock - Parse a PRET try-catch block.
 ///
 ///       try-block:
-///         'tryin' '(' expression ')' '{'
+///         'tryin' '(' expression ',' expression ')' '{'
 //              compound-statement
 //          '}' 'catch' '{'
 //              compound-statement
@@ -1457,10 +1457,37 @@ Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
     return StmtError();
   }
 
-  // Parse the timing constraint.
-  OwningExprResult ConstraintExpr(Actions);
-  if (ParseParenExprOrCondition(ConstraintExpr))
-    return StmtError();
+  // Parse the timing constraints.
+  SourceLocation LParenLoc = ConsumeParen();
+  OwningExprResult LowerBound(Actions), UpperBound(Actions);
+
+  // Parse the first part of the tryin (i.e. the lower bound).
+  if (Tok.is(tok::semi)) {  // tryin (;...)
+    ConsumeToken();
+  } else {
+    LowerBound = ParseExpression();
+
+    if (Tok.is(tok::semi)) {
+      ConsumeToken();
+    } else {
+      if (!LowerBound.isInvalid())
+        Diag(Tok, diag::err_expected_semi_after_expr);
+      SkipUntil(tok::r_paren);
+    }
+  }
+  // Parse the second part of the tryin (i.e. the upper bound).
+  if (Tok.is(tok::r_paren)) {  // tryin (...;)
+    ConsumeParen();
+  } else {
+    UpperBound = ParseExpression();
+
+    if (Tok.is(tok::r_paren)) {
+      ConsumeParen();
+    } else {
+      if (!LowerBound.isInvalid()) Diag(Tok, diag::err_expected_rparen);
+      SkipUntil(tok::semi);
+    }
+  }
 
   // Parse body of tryin block
   if (Tok.isNot(tok::l_brace))
@@ -1480,7 +1507,9 @@ Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
   if (CatchBlock.isInvalid())
     return move(CatchBlock);
 
-  return Actions.ActOnPRETTryBlock(TryLoc, Actions.FullExpr(ConstraintExpr),
+  return Actions.ActOnPRETTryBlock(TryLoc,
+                                   Actions.FullExpr(LowerBound),
+                                   Actions.FullExpr(UpperBound),
                                    move(TryBlock), CatchLoc,
                                    move(CatchBlock));
 }

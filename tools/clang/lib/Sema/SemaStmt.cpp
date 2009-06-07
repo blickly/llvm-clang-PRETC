@@ -1269,24 +1269,43 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
 /// ActOnPRETTryBlock - Takes a try compound-statement and a number of
 /// handlers and creates a try statement from them.
 Action::OwningStmtResult
-Sema::ActOnPRETTryBlock(SourceLocation TryLoc, FullExprArg ConstraintVal,
+Sema::ActOnPRETTryBlock(SourceLocation TryLoc,
+                        FullExprArg LowerBoundVal, FullExprArg UpperBoundVal,
                         StmtArg TryBlock, SourceLocation CatchLoc,
                         StmtArg CatchBlock) {
-  OwningExprResult ConstraintResult(ConstraintVal.release());
-  
-  Expr *constraintExpr = ConstraintResult.takeAs<Expr>();
-  assert(constraintExpr && "ActOnPRETTryBlock(): missing expression");
+  // Check lower bound
+  OwningExprResult LowerBoundResult(LowerBoundVal.release());
+  Expr *lowerBoundExpr = LowerBoundResult.takeAs<Expr>();
+  //assert(lowerBoundExpr && "ActOnPRETTryBlock(): missing lower bound");
 
-  DefaultFunctionArrayConversion(constraintExpr);
-  QualType constraintType = constraintExpr->getType();
+  if (lowerBoundExpr) {
+    DefaultFunctionArrayConversion(lowerBoundExpr);
+    QualType lowerBoundType = lowerBoundExpr->getType();
 
-  if (!constraintType->isIntegerType()) {
-    return StmtError(Diag(TryLoc,
-                     diag::err_typecheck_statement_requires_integer)
-                     << constraintType << constraintExpr->getSourceRange());
+    if (!lowerBoundType->isIntegerType()) {
+      return StmtError(Diag(TryLoc,
+                       diag::err_typecheck_statement_requires_integer)
+                       << lowerBoundType << lowerBoundExpr->getSourceRange());
+    }
   }
 
-  return Owned(new (Context) PRETTryStmt(TryLoc, constraintExpr,
+  // Check upper bound
+  OwningExprResult UpperBoundResult(UpperBoundVal.release());
+  Expr *upperBoundExpr = UpperBoundResult.takeAs<Expr>();
+  //assert(upperBoundExpr && "ActOnPRETTryBlock(): missing upper bound");
+
+  if (upperBoundExpr) {
+    DefaultFunctionArrayConversion(upperBoundExpr);
+    QualType upperBoundType = upperBoundExpr->getType();
+
+    if (!upperBoundType->isIntegerType()) {
+      return StmtError(Diag(TryLoc,
+                       diag::err_typecheck_statement_requires_integer)
+                       << upperBoundType << upperBoundExpr->getSourceRange());
+    }
+  }
+
+  return Owned(new (Context) PRETTryStmt(TryLoc, lowerBoundExpr, upperBoundExpr,
                                   static_cast<Stmt*>(TryBlock.release()),
                                   CatchLoc,
                                   static_cast<Stmt*>(CatchBlock.release())));
