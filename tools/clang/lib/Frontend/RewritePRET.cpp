@@ -82,6 +82,7 @@ namespace {
     Stmt *RewriteFunctionBody(Stmt *S);
     Stmt *RewriteMainBody(Stmt *S);
     Stmt *RewritePRETTryStmt(PRETTryStmt *S);
+    Stmt *RewritePRETTimedLoopStmt(PRETTimedLoopStmt *S);
   };
 }
 
@@ -92,7 +93,7 @@ RewritePRET::RewritePRET(std::string inFile, llvm::raw_ostream *OS,
 
 ASTConsumer *clang::CreatePRETRewriter(const std::string& InFile,
                                        llvm::raw_ostream* OS,
-                                       Diagnostic &Diags, 
+                                       Diagnostic &Diags,
                                        const LangOptions &LOpts) {
   return new RewritePRET(InFile, OS, Diags, LOpts);
 }
@@ -137,33 +138,68 @@ void RewritePRET::HandleTopLevelSingleDecl(Decl *D) {
 //===----------------------------------------------------------------------===//
 // Syntactic (non-AST) Rewriting Code
 //===----------------------------------------------------------------------===//
+Stmt *RewritePRET::RewritePRETTimedLoopStmt(PRETTimedLoopStmt *S) {
+  return S;
+}
 
 Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   //printf("Rewriting a PRET tryin statment.\n");
   SourceLocation startLoc = S->getLocStart();
   const char *startBuf = SM->getCharacterData(startLoc);
+  const bool lowerBounded = S->getLowerBound() != NULL;
+  const bool upperBounded = S->getUpperBound() != NULL;
+  if (!lowerBounded) printf("No lower bound!\n");
+  if (!upperBounded) printf("No upper bound!\n");
 
   std::string buf;
-  std::string deadreg;
   S->setDeadlineRegister(CurrentDeadlineRegister);
-  CurrentDeadlineRegister++;
-  deadreg = '0' + S->getDeadlineRegister();
-  buf += "if (_setjmp(PRET_jmpbuf_" + deadreg
-         + ") == 0) /* tryin block */ {\n";
-  buf += "DEADLOADBRANCH" + deadreg;
-  // Argument to tryin block actually goes to DEADBRANCH statement
+  const std::string deadreg = llvm::utostr(S->getDeadlineRegister());
+  const std::string deadbranchreg = llvm::utostr(S->getDeadlineRegister()+1);
+  CurrentDeadlineRegister += 2;
+  // Arguments to tryin block go to DEAD and DEADBRANCH statements
+  if (upperBounded) {
+    buf = "if (_setjmp(PRET_jmpbuf_" + deadbranchreg
+           + ") == 0) /* tryin block */ {\n";
+  } else {
+    buf = "if (1) {\n";
+  }
+  if (lowerBounded) {
+    buf += "DEADLOAD" + deadreg;
+  } else {
+    buf += "_NULL_STMT";
+  }
   const char *lParenLoc = strchr(startBuf, '(');
-  ReplaceText(startLoc, lParenLoc-startBuf, buf.c_str(), buf.size());
+  ReplaceText(startLoc, lParenLoc - startBuf, buf.c_str(), buf.size());
+  const char *semicolonLoc = strchr(lParenLoc, ';');
+  startLoc = startLoc.getFileLocWithOffset(semicolonLoc - startBuf);
+  buf = ");\n";
+  if (upperBounded) {
+    buf += "DEADLOADBRANCH" + deadbranchreg + "(";
+  } else {
+    buf += "_NULL_STMT";
+  }
+  ReplaceText(startLoc, 1, buf.c_str(), buf.size());
+
   // Add in if and setjmp code
   startLoc = S->getTryBlock()->getLocStart();
   buf = ";";
   ReplaceText(startLoc, 1, buf.c_str(), buf.size());
 
   // Add DEADEND at end of try block
+  buf = "";
   startLoc = S->getTryBlock()->getLocEnd();
   startBuf = SM->getCharacterData(startLoc);
   assert((*startBuf == '}') && "bogus tryin block");
-  buf = "DEADLOAD" + deadreg + "(0);\n";
+  if (upperBounded) {
+    buf += "DEADLOAD" + deadbranchreg + "(0);\n";
+  } else {
+    buf += "_NULL_STMT();\n";
+  }
+  if (lowerBounded) {
+    buf += "DEADLOAD" + deadreg + "(0);\n";
+  } else {
+    buf += "_NULL_STMT();\n";
+  }
   InsertText(startLoc, buf.c_str(), buf.size());
   // Replace catch stament with an else statment
   startLoc = startLoc.getFileLocWithOffset(1);
@@ -180,9 +216,9 @@ Stmt *RewritePRET::RewriteMainBody(Stmt *S) {
   std::string buf = "";
   for (int i = 0; i < CurrentDeadlineRegister; i++) {
     buf += "register_jmpbuf(";
-    buf += '0' + i;
+    buf += llvm::utostr(i);
     buf += ", &PRET_jmpbuf_";
-    buf += '0' + i;
+    buf += llvm::utostr(i);
     buf += ");\n";
   }
   InsertText(startLoc, buf.c_str(), buf.size());
@@ -213,6 +249,8 @@ Stmt *RewritePRET::RewriteFunctionBody(Stmt *S) {
 
   if (PRETTryStmt *StmtTry = dyn_cast<PRETTryStmt>(S))
     return RewritePRETTryStmt(StmtTry);
+  else if (PRETTimedLoopStmt *StmtTimedLoop = dyn_cast<PRETTimedLoopStmt>(S))
+    return RewritePRETTimedLoopStmt(StmtTimedLoop);
 
   // Return this Stmt without modifications.
   return S;
@@ -247,10 +285,10 @@ void RewritePRET::HandleTranslationUnit(ASTContext &C) {
 
   for (int i = 0; i < CurrentDeadlineRegister; i++) {
     std::string buf_name = "PRET_jmpbuf_";
-    buf_name += '0' + i;
+    buf_name += llvm::utostr(i);
     Preamble += "jmp_buf " + buf_name + ";\n";
   }
-  InsertText(SM->getLocForStartOfFile(MainFileID), 
+  InsertText(SM->getLocForStartOfFile(MainFileID),
              Preamble.c_str(), Preamble.size(), false);
 
   // Get the buffer corresponding to MainFileID.  If we haven't changed it, then
