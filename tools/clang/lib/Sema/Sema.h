@@ -1271,6 +1271,12 @@ public:
                                              StmtArg TryBlock,
                                              SourceLocation CatchLoc,
                                              StmtArg CatchBlock);
+  virtual OwningStmtResult ActOnPRETTimedLoop(SourceLocation LoopLoc,
+                                              FullExprArg LowerBoundVal,
+                                              FullExprArg UpperBoundVal,
+                                              StmtArg LoopBlock,
+                                              SourceLocation CatchLoc,
+                                              StmtArg CatchBlock);
 
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks: SemaExpr.cpp.

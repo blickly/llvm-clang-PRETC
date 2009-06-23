@@ -393,6 +393,43 @@ TemplateStmtInstantiator::VisitPRETTryStmt(PRETTryStmt *S) {
                                    S->getCatchLoc(), move(CatchBlock));
 }
 
+Sema::OwningStmtResult
+TemplateStmtInstantiator::VisitPRETTimedLoopStmt(PRETTimedLoopStmt *S) {
+  // Instantiate the lower bound expression.
+  OwningExprResult LowerBound = SemaRef.InstantiateExpr(S->getLowerBound(),
+                                                        TemplateArgs);
+  if (LowerBound.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the upper bound expression.
+  OwningExprResult UpperBound = SemaRef.InstantiateExpr(S->getUpperBound(),
+                                                        TemplateArgs);
+  if (UpperBound.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the try block.
+  //OwningStmtResult LoopBlock = VisitCompoundStmt(S->getLoopBlock());
+  OwningStmtResult LoopBlock = SemaRef.InstantiateStmt(S->getLoopBlock(),
+                                                      TemplateArgs);
+  if (LoopBlock.isInvalid())
+    return SemaRef.StmtError();
+
+  // Instantiate the catch block.
+  OwningStmtResult CatchBlock = SemaRef.InstantiateStmt(S->getCatchBlock(),
+                                                        TemplateArgs);
+  if (CatchBlock.isInvalid())
+    return SemaRef.StmtError();
+
+  return SemaRef.StmtError();
+/*
+  return SemaRef.ActOnPRETTimedLoop(S->getLoopLoc(),
+                                    FullExpr(LowerBound),
+                                    FullExpr(UpperBound),
+                                    move(LoopBlock),
+                                    S->getCatchLoc(), move(CatchBlock));
+                                    */
+}
+
 //===----------------------------------------------------------------------===/
 //  Objective-C statements
 //===----------------------------------------------------------------------===/

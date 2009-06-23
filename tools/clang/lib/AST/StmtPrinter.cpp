@@ -485,6 +485,25 @@ void StmtPrinter::VisitPRETTryStmt(PRETTryStmt *Node) {
   OS << "\n";
 }
 
+void StmtPrinter::VisitPRETTimedLoopStmt(PRETTimedLoopStmt *Node) {
+  Indent() << "timedloop (";
+  if (Node->getLowerBound()) {
+    PrintExpr(Node->getLowerBound());
+  }
+  OS << ';';
+  if (Node->getUpperBound()) {
+    OS << ' ';
+    PrintExpr(Node->getUpperBound());
+  }
+  OS << ") ";
+  PrintRawCompoundStmt(Node->getLoopBlock());
+
+  OS << " catch ";
+  PrintRawCompoundStmt(Node->getCatchBlock());
+  OS << "\n";
+}
+
+
 //===----------------------------------------------------------------------===//
 //  Expr printing methods.
 //===----------------------------------------------------------------------===//

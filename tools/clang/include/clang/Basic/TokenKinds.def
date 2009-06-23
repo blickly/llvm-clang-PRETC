@@ -224,6 +224,7 @@ KEYWORD(__func__                    , KEYALL)
 
 // Special PRET keywords
 KEYWORD(tryin                       , KEYGNU)
+KEYWORD(timedloop                   , KEYGNU)
 
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , KEYCXX|KEYGNU)

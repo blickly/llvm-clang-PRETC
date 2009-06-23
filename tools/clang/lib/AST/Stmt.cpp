@@ -590,3 +590,7 @@ CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
 // PRETTryStmt
 Stmt::child_iterator PRETTryStmt::child_begin() { return &SubExprs[0]; }
 Stmt::child_iterator PRETTryStmt::child_end() { return &SubExprs[0]+END_EXPR; }
+
+// PRETTimedLoopStmt
+Stmt::child_iterator PRETTimedLoopStmt::child_begin() { return &SubExprs[0]; }
+Stmt::child_iterator PRETTimedLoopStmt::child_end() { return &SubExprs[0]+END_EXPR; }

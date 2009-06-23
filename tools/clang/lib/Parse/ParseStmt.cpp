@@ -177,6 +177,9 @@ Parser::ParseStatementOrDeclaration(bool OnlyStatement) {
 
   case tok::kw_tryin:               // PRET: tryin-block
     return ParsePRETTryBlock();
+
+  case tok::kw_timedloop:           // PRET: timedloop
+    return ParsePRETTimedLoop();
   }
 
   // If we reached this code, the statement must end in a semicolon.
@@ -1440,7 +1443,7 @@ Parser::OwningStmtResult Parser::ParseCXXCatchBlock() {
 /// ParsePRETTryBlock - Parse a PRET try-catch block.
 ///
 ///       try-block:
-///         'tryin' '(' expression ',' expression ')' '{'
+///         'tryin' '(' expression ';' expression ')' '{'
 //              compound-statement
 //          '}' 'catch' '{'
 //              compound-statement
@@ -1512,4 +1515,79 @@ Parser::OwningStmtResult Parser::ParsePRETTryBlock() {
                                    Actions.FullExpr(UpperBound),
                                    move(TryBlock), CatchLoc,
                                    move(CatchBlock));
+}
+
+/// ParsePRETTimedLoop - Parse a PRET timedloop block.
+///
+///       timedloop:
+///         'timedloop' '(' expression ';' expression ')' '{'
+//              compound-statement
+//          '}'
+///
+Parser::OwningStmtResult Parser::ParsePRETTimedLoop() {
+  assert(Tok.is(tok::kw_timedloop) && "Expected 'timedloop'");
+
+  SourceLocation TryLoc = ConsumeToken();
+
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(Tok, diag::err_expected_lparen_after) << "timedloop";
+    SkipUntil(tok::semi);
+    return StmtError();
+  }
+
+  // Parse the timing constraints.
+  SourceLocation LParenLoc = ConsumeParen();
+  OwningExprResult LowerBound(Actions), UpperBound(Actions);
+
+  // Parse the first part of the timedloop (i.e. the lower bound).
+  if (Tok.is(tok::semi)) {  // timedloop (;...)
+    ConsumeToken();
+  } else {
+    LowerBound = ParseExpression();
+
+    if (Tok.is(tok::semi)) {
+      ConsumeToken();
+    } else {
+      if (!LowerBound.isInvalid())
+        Diag(Tok, diag::err_expected_semi_after_expr);
+      SkipUntil(tok::r_paren);
+    }
+  }
+  // Parse the second part of the timedloop (i.e. the upper bound).
+  if (Tok.is(tok::r_paren)) {  // timedloop (...;)
+    ConsumeParen();
+  } else {
+    UpperBound = ParseExpression();
+
+    if (Tok.is(tok::r_paren)) {
+      ConsumeParen();
+    } else {
+      if (!LowerBound.isInvalid()) Diag(Tok, diag::err_expected_rparen);
+      SkipUntil(tok::semi);
+    }
+  }
+
+  // Parse body of timedloop block
+  if (Tok.isNot(tok::l_brace))
+    return StmtError(Diag(Tok, diag::err_expected_lbrace));
+  OwningStmtResult TimedLoop(ParseCompoundStatement());
+  if (TimedLoop.isInvalid())
+    return move(TimedLoop);
+
+  // Parse catch block
+  if (Tok.isNot(tok::kw_catch))
+    return StmtError(Diag(Tok, diag::err_expected_catch));
+  SourceLocation CatchLoc = ConsumeToken();
+
+  if (Tok.isNot(tok::l_brace))
+    return StmtError(Diag(Tok, diag::err_expected_lbrace));
+  OwningStmtResult CatchBlock(ParseCompoundStatement());
+  if (CatchBlock.isInvalid())
+    return move(CatchBlock);
+
+  return Actions.ActOnPRETTimedLoop(TryLoc,
+                                    Actions.FullExpr(LowerBound),
+                                    Actions.FullExpr(UpperBound),
+                                    move(TimedLoop), CatchLoc,
+                                    move(CatchBlock));
 }

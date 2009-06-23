@@ -894,6 +894,7 @@ private:
   // PRET: Statements and Blocks
 
   OwningStmtResult ParsePRETTryBlock();
+  OwningStmtResult ParsePRETTimedLoop();
 
   //===--------------------------------------------------------------------===//
   // Objective-C Statements

@@ -62,7 +62,8 @@ STMT(CXXCatchStmt, Stmt)
 STMT(CXXTryStmt  , Stmt)
 
 // PRET statements
-STMT(PRETTryStmt  , Stmt)
+STMT(PRETTimedLoopStmt, Stmt)
+STMT(PRETTryStmt      , Stmt)
 
 LAST_STMT(PRETTryStmt)
 

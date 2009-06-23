@@ -626,6 +626,15 @@ public:
     return StmtEmpty();
   }
 
+  virtual OwningStmtResult ActOnPRETTimedLoop(SourceLocation LoopLoc,
+                                              FullExprArg LowerBoundVal,
+                                              FullExprArg UpperBoundVal,
+                                              StmtArg LoopBlock,
+                                              SourceLocation CatchLoc,
+                                              StmtArg CatchBlock) {
+    return StmtEmpty();
+  }
+
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks.
   //===--------------------------------------------------------------------===//

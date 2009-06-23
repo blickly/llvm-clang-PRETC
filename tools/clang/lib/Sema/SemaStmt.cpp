@@ -1310,3 +1310,49 @@ Sema::ActOnPRETTryBlock(SourceLocation TryLoc,
                                   CatchLoc,
                                   static_cast<Stmt*>(CatchBlock.release())));
 }
+
+/// ActOnPRETTimedLoop - Takes a loop block and a catch block and
+/// makes a PRET timed loop construct from them.
+Action::OwningStmtResult
+Sema::ActOnPRETTimedLoop(SourceLocation LoopLoc,
+                         FullExprArg LowerBoundVal, FullExprArg UpperBoundVal,
+                         StmtArg LoopBlock, SourceLocation CatchLoc,
+                         StmtArg CatchBlock) {
+  // Check lower bound
+  OwningExprResult LowerBoundResult(LowerBoundVal.release());
+  Expr *lowerBoundExpr = LowerBoundResult.takeAs<Expr>();
+  //assert(lowerBoundExpr && "ActOnPRETLoopBlock(): missing lower bound");
+
+  if (lowerBoundExpr) {
+    DefaultFunctionArrayConversion(lowerBoundExpr);
+    QualType lowerBoundType = lowerBoundExpr->getType();
+
+    if (!lowerBoundType->isIntegerType()) {
+      return StmtError(Diag(LoopLoc,
+                       diag::err_typecheck_statement_requires_integer)
+                       << lowerBoundType << lowerBoundExpr->getSourceRange());
+    }
+  }
+
+  // Check upper bound
+  OwningExprResult UpperBoundResult(UpperBoundVal.release());
+  Expr *upperBoundExpr = UpperBoundResult.takeAs<Expr>();
+  //assert(upperBoundExpr && "ActOnPRETLoopBlock(): missing upper bound");
+
+  if (upperBoundExpr) {
+    DefaultFunctionArrayConversion(upperBoundExpr);
+    QualType upperBoundType = upperBoundExpr->getType();
+
+    if (!upperBoundType->isIntegerType()) {
+      return StmtError(Diag(LoopLoc,
+                       diag::err_typecheck_statement_requires_integer)
+                       << upperBoundType << upperBoundExpr->getSourceRange());
+    }
+  }
+
+  return Owned(new (Context) PRETTimedLoopStmt(LoopLoc,
+                                  lowerBoundExpr, upperBoundExpr,
+                                  static_cast<Stmt*>(LoopBlock.release()),
+                                  CatchLoc,
+                                  static_cast<Stmt*>(CatchBlock.release())));
+}
