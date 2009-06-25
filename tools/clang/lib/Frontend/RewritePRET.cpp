@@ -139,6 +139,69 @@ void RewritePRET::HandleTopLevelSingleDecl(Decl *D) {
 // Syntactic (non-AST) Rewriting Code
 //===----------------------------------------------------------------------===//
 Stmt *RewritePRET::RewritePRETTimedLoopStmt(PRETTimedLoopStmt *S) {
+  SourceLocation startLoc = S->getLocStart();
+  const char *startBuf = SM->getCharacterData(startLoc);
+  const bool lowerBounded = S->getLowerBound() != NULL;
+  const bool upperBounded = S->getUpperBound() != NULL;
+  if (!lowerBounded) printf("No lower bound!\n");
+  if (!upperBounded) printf("No upper bound!\n");
+
+  std::string buf;
+  S->setDeadlineRegister(CurrentDeadlineRegister);
+  const std::string deadreg = llvm::utostr(S->getDeadlineRegister());
+  const std::string deadbranchreg = llvm::utostr(S->getDeadlineRegister()+1);
+  CurrentDeadlineRegister += 2;
+  // Arguments to tryin block go to DEAD and DEADBRANCH statements
+  if (upperBounded) {
+    buf = "PRET_timedloop_start_" + deadbranchreg
+          + ": if (_setjmp(PRET_jmpbuf_" + deadbranchreg
+          + ") == 0) /* no exception */ {\n";
+  } else {
+    buf = "if (1) {\n";
+  }
+  buf += "for (;;) {\n";
+  if (upperBounded) {
+    buf += "DEADLOAD" + deadbranchreg + "(0);\n";
+  }
+  if (lowerBounded) {
+    buf += "DEAD" + deadreg;
+  } else {
+    buf += "_NULL_STMT";
+  }
+  const char *lParenLoc = strchr(startBuf, '(');
+  ReplaceText(startLoc, lParenLoc - startBuf, buf.c_str(), buf.size());
+  const char *semicolonLoc = strchr(lParenLoc, ';');
+  startLoc = startLoc.getFileLocWithOffset(semicolonLoc - startBuf);
+  buf = ");\n";
+  if (upperBounded) {
+    buf += "DEADLOADBRANCH" + deadbranchreg + "(";
+  } else {
+    buf += "_NULL_STMT(";
+  }
+  ReplaceText(startLoc, 1, buf.c_str(), buf.size());
+
+  // Add in if and setjmp code
+  startLoc = S->getLoopBlock()->getLocStart();
+  buf = ";";
+  ReplaceText(startLoc, 1, buf.c_str(), buf.size());
+
+  // Add DEADEND at end of try block
+  buf = "";
+  startLoc = S->getLoopBlock()->getLocEnd();
+  startBuf = SM->getCharacterData(startLoc);
+  assert((*startBuf == '}') && "bogus tryin block");
+  InsertText(startLoc, buf.c_str(), buf.size());
+  // Replace catch stament with an else statment
+  startLoc = startLoc.getFileLocWithOffset(1);
+  buf = "\n} else /* catch block */ ";
+  const char *lBraceLoc = strchr(startBuf, '{');
+  ReplaceText(startLoc, lBraceLoc-startBuf-1, buf.c_str(), buf.size());
+  if (upperBounded) {
+    startLoc = S->getCatchBlock()->getLocEnd();
+    buf = "goto PRET_timedloop_start_" + deadbranchreg + ";\n";
+    InsertText(startLoc, buf.c_str(), buf.size());
+  }
+
   return S;
 }
 
@@ -176,7 +239,7 @@ Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   if (upperBounded) {
     buf += "DEADLOADBRANCH" + deadbranchreg + "(";
   } else {
-    buf += "_NULL_STMT";
+    buf += "_NULL_STMT(";
   }
   ReplaceText(startLoc, 1, buf.c_str(), buf.size());
 
@@ -192,13 +255,9 @@ Stmt *RewritePRET::RewritePRETTryStmt(PRETTryStmt *S) {
   assert((*startBuf == '}') && "bogus tryin block");
   if (upperBounded) {
     buf += "DEADLOAD" + deadbranchreg + "(0);\n";
-  } else {
-    buf += "_NULL_STMT();\n";
   }
   if (lowerBounded) {
     buf += "DEADLOAD" + deadreg + "(0);\n";
-  } else {
-    buf += "_NULL_STMT();\n";
   }
   InsertText(startLoc, buf.c_str(), buf.size());
   // Replace catch stament with an else statment
